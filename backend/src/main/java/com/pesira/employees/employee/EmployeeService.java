@@ -1,5 +1,6 @@
 package com.pesira.employees.employee;
 
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -119,7 +120,8 @@ public class EmployeeService {
         employee.setPhone(request.phone() == null || request.phone().isBlank() ? null : request.phone().trim());
         employee.setDepartment(request.department().trim());
         employee.setJobTitle(request.jobTitle().trim());
-        employee.setSalary(request.salary());
+        // Scale is safe: @Digits already limits input to two decimal places.
+        employee.setSalary(request.salary().setScale(2, RoundingMode.UNNECESSARY));
         employee.setHireDate(request.hireDate());
         employee.setStatus(request.status() == null ? EmployeeStatus.ACTIVE : request.status());
     }
