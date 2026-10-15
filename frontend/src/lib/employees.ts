@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { Employee, EmployeeStatus, Page } from "./types";
+import type { Employee, EmployeePayload, EmployeeStatus, Page } from "./types";
 
 export type SortDir = "asc" | "desc";
 
@@ -36,4 +36,16 @@ export function listEmployees(query: EmployeeQuery, signal?: AbortSignal) {
 
 export function listDepartments() {
   return api<string[]>("/api/employees/departments");
+}
+
+export function createEmployee(payload: EmployeePayload) {
+  return api<Employee>("/api/employees", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function updateEmployee(id: number, payload: EmployeePayload) {
+  return api<Employee>(`/api/employees/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+}
+
+export function deleteEmployee(id: number) {
+  return api<void>(`/api/employees/${id}`, { method: "DELETE" });
 }
