@@ -7,12 +7,14 @@ import { EmployeeTable } from "@/components/EmployeeTable";
 import { Pagination } from "@/components/Pagination";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmployeeFormModal } from "@/components/EmployeeFormModal";
+import { ExportMenu } from "@/components/ExportMenu";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   STATUS_LABELS,
   deleteEmployee,
+  exportEmployees,
   listDepartments,
   listEmployees,
   type EmployeeQuery,
@@ -129,6 +131,16 @@ function EmployeesView() {
           <p className="subtitle">{data ? `${data.totalElements} records` : "Loading…"}</p>
         </div>
         <div className="header-actions">
+          <ExportMenu
+            disabled={!data || data.totalElements === 0}
+            onExport={async (format) => {
+              try {
+                await exportEmployees(query, format);
+              } catch (err) {
+                notify("error", err instanceof ApiError ? err.message : "Export failed");
+              }
+            }}
+          />
           <button type="button" className="btn btn-primary" onClick={() => setEditing(null)}>
             + Add employee
           </button>

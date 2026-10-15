@@ -761,3 +761,39 @@ h3 {
     opacity: 0;
   }
 }
+
+/* ---------- Dropdown ---------- */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 170px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  z-index: 20;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+  background: var(--surface-muted);
+}
