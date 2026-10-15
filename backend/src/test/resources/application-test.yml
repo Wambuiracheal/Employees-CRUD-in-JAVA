@@ -5,3 +5,13 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+
+# Throwaway values that only exist inside the in-memory test database. Not used anywhere else.
+app:
+  jwt:
+    secret: dGVzdC1vbmx5LWp3dC1rZXktbm90LXVzZWQtb3V0c2lkZS10ZXN0cy0wMDAwMDA=
+  seed:
+    admin-email: admin@test.local
+    admin-password: test-admin-pass-1
+    user-email: user@test.local
+    user-password: test-user-pass-1

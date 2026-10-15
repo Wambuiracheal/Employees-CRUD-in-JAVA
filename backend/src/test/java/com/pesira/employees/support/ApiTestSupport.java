@@ -24,10 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public abstract class ApiTestSupport {
 
-    protected static final String ADMIN_EMAIL = "admin@pesira.com";
-    protected static final String ADMIN_PASSWORD = "Admin@123";
-    protected static final String USER_EMAIL = "user@pesira.com";
-    protected static final String USER_PASSWORD = "User@1234";
+    protected static final String ADMIN_EMAIL = "admin@test.local";
+    protected static final String ADMIN_PASSWORD = "test-admin-pass-1";
+    protected static final String USER_EMAIL = "user@test.local";
+    protected static final String USER_PASSWORD = "test-user-pass-1";
 
     @Autowired
     protected MockMvc mvc;

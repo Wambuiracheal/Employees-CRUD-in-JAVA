@@ -417,21 +417,6 @@ h3 {
   color: var(--text-muted);
 }
 
-.demo-credentials {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-muted);
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.demo-credentials strong {
-  color: var(--text);
-}
-
 /* ---------- Toolbar ---------- */
 .toolbar {
   display: flex;

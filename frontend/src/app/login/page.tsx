@@ -86,12 +86,6 @@ function LoginForm() {
         <p className="auth-footer">
           No account? <Link href="/register">Create one</Link>
         </p>
-
-        <div className="demo-credentials">
-          <strong>Demo accounts</strong>
-          <span>Admin: admin@pesira.com / Admin@123</span>
-          <span>User: user@pesira.com / User@1234</span>
-        </div>
       </form>
     </div>
   );

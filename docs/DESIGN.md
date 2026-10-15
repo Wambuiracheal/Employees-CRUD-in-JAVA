@@ -36,7 +36,7 @@
 - **Per-request user lookup.** The JWT filter reloads the user from the database on each request. This costs one indexed query, but role changes and deleted accounts take effect immediately instead of when the token expires.
 - **Two layers of authorisation.** URL rules in `SecurityConfig` require authentication for everything except login, register and health. Method-level `@PreAuthorize("hasRole('ADMIN')")` protects delete and user management. The frontend also hides admin-only controls, but only for UX; the API is the actual enforcement point.
 - **Passwords.** Hashed with BCrypt. Registration requires 8–72 characters with letters and digits (72 is BCrypt's input limit).
-- **Configuration.** The JWT secret, DB credentials, CORS origins and seed accounts all come from environment variables. The defaults are for local development only.
+- **Configuration and secrets.** The JWT secret, DB password and seed-account passwords have **no defaults in the code or the repository**. They come from environment variables, supplied by a git-ignored `.env` file for Docker Compose (template: `.env.example`). The app fails fast if `JWT_SECRET` or `DB_PASSWORD` is missing, and Compose names any missing variable. Tests use separate throwaway values.
 - **CORS.** Restricted to the configured frontend origin, and `Content-Disposition` is exposed so the browser can read the export filename.
 
 **Known trade-off:** the frontend stores the JWT in `localStorage`. That's simple and works across tabs, but any XSS on the origin could read it. A production system would use an `HttpOnly`, `SameSite` cookie (re-enabling CSRF protection) or short-lived access tokens with refresh tokens. Logout is client-side only; there's no token revocation list.

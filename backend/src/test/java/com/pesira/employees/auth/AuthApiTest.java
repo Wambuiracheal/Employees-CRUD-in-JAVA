@@ -17,7 +17,7 @@ class AuthApiTest extends ApiTestSupport {
     void loginReturnsTokenAndRole() throws Exception {
         mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(new Object[]{"email", "ADMIN@pesira.com ", "password", ADMIN_PASSWORD})))
+                        .content(json(new Object[]{"email", " ADMIN@test.local ", "password", ADMIN_PASSWORD})))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))

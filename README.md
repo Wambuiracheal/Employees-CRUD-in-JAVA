@@ -158,6 +158,19 @@ flowchart LR
 
 Prerequisite: Docker with Compose v2.
 
+### 1. Configure secrets
+
+No passwords or keys are committed to this repository. Create a `.env` file in the project root from the template and fill it in. The values for the demo setup are **shared separately**; alternatively, generate your own with `openssl rand -base64 48`.
+
+```bash
+cp .env.example .env
+# then edit .env: DB_PASSWORD, JWT_SECRET, SEED_ADMIN_PASSWORD, SEED_USER_PASSWORD
+```
+
+`.env` is git-ignored. Docker Compose refuses to start and names the missing variable if any required value is empty.
+
+### 2. Start the stack
+
 ```bash
 docker compose up -d --build
 ```
@@ -167,18 +180,13 @@ docker compose up -d --build
 | Web app  | http://localhost:3000                 |
 | REST API | http://localhost:8080/api             |
 | Health   | http://localhost:8080/actuator/health |
-| Postgres | localhost:5432 (db/user/password `employees`) |
+| Postgres | localhost:5432 (database and user `employees`, password from `.env`) |
 
 If port 5432 is already in use, start with `DB_PORT=5433 docker compose up -d --build`.
 
-### Demo accounts
+### Accounts
 
-These are created on first start. Override them with the `SEED_*` environment variables.
-
-| Role  | Email              | Password    |
-|-------|--------------------|-------------|
-| Admin | `admin@pesira.com` | `Admin@123` |
-| User  | `user@pesira.com`  | `User@1234` |
+On first start the backend creates an **admin** account (`SEED_ADMIN_EMAIL`) and a **user** account (`SEED_USER_EMAIL`) with the passwords from `.env`. Accounts are seeded only once, so changing the passwords later requires `docker compose down -v` to reset the database.
 
 You can also create a new account from the **Create one** link; self-registered accounts get the `USER` role. The database is seeded with 25 sample employees by a Flyway migration.
 
@@ -195,7 +203,7 @@ Prerequisites: JDK 21, Node.js 20+, and a PostgreSQL 14+ instance. Maven is not 
 Create the database and user, or run just the DB container with `docker compose up -d db`:
 
 ```sql
-CREATE USER employees WITH PASSWORD 'employees';
+CREATE USER employees WITH PASSWORD '<your DB_PASSWORD>';
 CREATE DATABASE employees OWNER employees;
 ```
 
@@ -203,24 +211,28 @@ Flyway creates the schema automatically when the backend starts.
 
 ### 2. Backend (port 8080)
 
+Export the variables from your `.env` first, then start the backend:
+
 ```bash
+set -a; source ../.env; set +a      # bash/zsh: loads DB_PASSWORD, JWT_SECRET, SEED_* …
 cd backend
-./mvnw spring-boot:run        # Windows: mvnw.cmd spring-boot:run
+./mvnw spring-boot:run              # Windows: mvnw.cmd spring-boot:run
 ```
 
-Configuration is set with environment variables. The defaults are shown below and are defined in `backend/src/main/resources/application.yml`:
+Configuration comes from environment variables, defined in `backend/src/main/resources/application.yml`. Secrets have **no defaults**: the backend fails to start without `JWT_SECRET` and `DB_PASSWORD`.
 
 | Variable                 | Default                                       | Purpose                                   |
 |--------------------------|-----------------------------------------------|-------------------------------------------|
 | `DB_URL`                 | `jdbc:postgresql://localhost:5432/employees`  | JDBC URL                                  |
-| `DB_USERNAME` / `DB_PASSWORD` | `employees` / `employees`                | DB credentials                            |
-| `JWT_SECRET`             | dev-only key                                  | Base64 HMAC key, at least 256 bits. **Change it outside local dev.** |
+| `DB_USERNAME`            | `employees`                                   | DB user                                   |
+| `DB_PASSWORD`            | **required**                                  | DB password                               |
+| `JWT_SECRET`             | **required**                                  | Base64 HMAC key, at least 256 bits        |
 | `JWT_EXPIRATION_MINUTES` | `120`                                         | Token lifetime                            |
 | `CORS_ALLOWED_ORIGINS`   | `http://localhost:3000`                       | Comma-separated list of browser origins   |
-| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | `admin@pesira.com` / `Admin@123` | Seeded admin account             |
-| `SEED_USER_EMAIL` / `SEED_USER_PASSWORD`   | `user@pesira.com` / `User@1234`  | Seeded user account              |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | `admin@pesira.com` / *none*  | Admin account, seeded only if a password is set |
+| `SEED_USER_EMAIL` / `SEED_USER_PASSWORD`   | `user@pesira.com` / *none*   | User account, seeded only if a password is set  |
 
-To generate a secret, run `openssl rand -base64 32`.
+To generate a secret, run `openssl rand -base64 48`.
 
 ### 3. Frontend (port 3000)
 
@@ -242,7 +254,7 @@ cd backend
 ./mvnw test
 ```
 
-The 26 tests cover:
+The tests need no `.env`: they use throwaway, test-only values from `src/test/resources/application-test.yml`. The 26 tests cover:
 
 - **API integration tests:** the full Spring context with the real security filter chain and real JWTs, run against in-memory H2 in PostgreSQL mode after the **real Flyway migrations** are applied. They cover auth, role checks, validation, paging, sorting, search, optimistic locking, status codes and export.
 - **Unit tests:** CSV escaping and formula-injection protection.
@@ -300,8 +312,9 @@ Every error response uses the same body:
 ### Example
 
 ```bash
+set -a; source .env; set +a        # loads SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
 TOKEN=$(curl -s localhost:8080/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"email":"admin@pesira.com","password":"Admin@123"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
+  -d "{\"email\":\"$SEED_ADMIN_EMAIL\",\"password\":\"$SEED_ADMIN_PASSWORD\"}" | sed 's/.*"token":"\([^"]*\)".*/\1/')
 
 curl -s "localhost:8080/api/employees?search=engineer&sortBy=salary&sortDir=desc&size=5" \
   -H "Authorization: Bearer $TOKEN"
