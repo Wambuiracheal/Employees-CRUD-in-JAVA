@@ -12,6 +12,148 @@ See [docs/DESIGN.md](docs/DESIGN.md) for design decisions and assumptions.
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client["Browser"]
+        UI["Next.js app<br/>(React, TypeScript, plain CSS)"]
+        LS[("localStorage<br/>JWT + user")]
+        UI <--> LS
+    end
+
+    subgraph API["Spring Boot API :8080"]
+        direction TB
+        SEC["Security filter chain<br/>CORS → JwtAuthenticationFilter<br/>→ URL rules → @PreAuthorize"]
+        CTRL["Controllers<br/>Auth · Employee · User"]
+        SVC["Services<br/>validation · business rules"]
+        REPO["Spring Data JPA repositories<br/>+ Specifications"]
+        ERR["GlobalExceptionHandler<br/>→ uniform JSON errors"]
+        SEC --> CTRL --> SVC --> REPO
+        CTRL -.-> ERR
+        SVC -.-> ERR
+    end
+
+    subgraph DB["PostgreSQL :5432"]
+        T1[("users")]
+        T2[("employees")]
+        FW[["Flyway migrations<br/>V1 · V2 · V3"]]
+        FW --> T1
+        FW --> T2
+    end
+
+    UI -- "REST / JSON<br/>Authorization: Bearer JWT" --> SEC
+    REPO -- "JDBC / Hibernate" --> T1
+    REPO -- "JDBC / Hibernate" --> T2
+```
+
+| Layer | Responsibility |
+|-------|----------------|
+| **Next.js frontend** | Pages for login, register, employees and users. `lib/api.ts` attaches the JWT and turns error responses into `ApiError`. `lib/auth.tsx` holds the session. Client-side validation mirrors the server's. |
+| **Security filter chain** | CORS check. `JwtAuthenticationFilter` verifies the token and loads the user from the database. URL rules require authentication, and `@PreAuthorize` restricts admin-only actions. 401/403 responses are JSON. |
+| **Controllers** | Map HTTP to service calls, run Bean Validation on request DTOs (`@Valid`), and set status codes (201 + `Location`, 204). |
+| **Services** | Business rules: email uniqueness, sort-field whitelist, page bounds, optimistic-lock check, last-admin protection. |
+| **Repositories** | Spring Data JPA. `EmployeeSpecifications` builds search and filter predicates shared by the list and export endpoints. |
+| **PostgreSQL + Flyway** | Flyway owns the schema. Hibernate only validates against it (`ddl-auto: validate`). Constraints back up the service-level rules. |
+
+---
+
+## Flows
+
+### Authentication
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant FE as Next.js
+    participant API as Spring Boot
+    participant DB as PostgreSQL
+
+    U->>FE: Enter email + password
+    FE->>FE: Client-side validation
+    FE->>API: POST /api/auth/login
+    API->>DB: Find user by email
+    API->>API: BCrypt verify password
+    alt valid credentials
+        API->>API: Sign JWT (sub=email, role, exp)
+        API-->>FE: 200 {token, expiresAt, user}
+        FE->>FE: Store token + user in localStorage
+        FE-->>U: Redirect to /employees
+    else invalid
+        API-->>FE: 401 "Invalid email or password"
+        FE-->>U: Show error
+    end
+```
+
+### Authenticated request (e.g. update an employee)
+
+```mermaid
+sequenceDiagram
+    participant FE as Next.js
+    participant F as JWT filter
+    participant C as EmployeeController
+    participant S as EmployeeService
+    participant DB as PostgreSQL
+
+    FE->>F: PUT /api/employees/7 + Bearer token + {…, version: 3}
+    F->>F: Verify signature & expiry
+    alt token missing / invalid / expired
+        F-->>FE: 401 → frontend logs out ("session expired")
+    end
+    F->>DB: Load user (role may have changed)
+    F->>C: Authenticated request
+    C->>C: @Valid request body
+    alt validation fails
+        C-->>FE: 400 + fieldErrors → shown under each input
+    end
+    C->>S: update(7, request)
+    S->>DB: Find employee 7
+    alt not found
+        S-->>FE: 404
+    else version ≠ 3 (edited by someone else)
+        S-->>FE: 409 "modified by someone else"
+    else email used by another employee
+        S-->>FE: 409 duplicate email
+    end
+    S->>DB: UPDATE … SET version = 4
+    S-->>FE: 200 updated employee
+```
+
+### Employee table: search, sort, paginate, export
+
+```mermaid
+flowchart TD
+    A["User types in search box,<br/>picks filter, clicks column header<br/>or changes page"] --> B["Update query state<br/>(search debounced 300 ms;<br/>filter change → page 0)"]
+    B --> C["Abort previous in-flight request"]
+    C --> D["GET /api/employees?search&status&department<br/>&page&size&sortBy&sortDir"]
+    D --> E{"sortBy whitelisted?<br/>1 ≤ size ≤ 100?"}
+    E -- no --> F["400 Bad Request"]
+    E -- yes --> G["Specification: name / email /<br/>department / title LIKE + filters"]
+    G --> H["Paged, sorted query<br/>(secondary sort on id)"]
+    H --> I["PageResponse<br/>{content, page, totalElements, totalPages}"]
+    I --> J["Render table + pagination"]
+
+    J --> K["Export ▾ → CSV or JSON"]
+    K --> L["GET /api/employees/export?format=…<br/>same filters + sort, no paging"]
+    L --> M["CSV: RFC 4180 + BOM + formula-injection guard<br/>JSON: pretty-printed array"]
+    M --> N["Blob download with server filename"]
+```
+
+### Role permissions
+
+```mermaid
+flowchart LR
+    USER(["USER"]) --> V["View / search / sort / page"]
+    USER --> CR["Create employee"]
+    USER --> UP["Update employee"]
+    USER --> EX["Export CSV / JSON"]
+    ADMIN(["ADMIN"]) --> V & CR & UP & EX
+    ADMIN --> DEL["Delete employee"]
+    ADMIN --> ROLE["Manage user roles"]
+```
+
+---
+
 ## Quick start (Docker)
 
 Prerequisite: Docker with Compose v2.
