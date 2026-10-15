@@ -59,4 +59,9 @@ public record EmployeeRequest(
 
         Long version
 ) {
+    public EmployeeRequest {
+        // Trim before validation so surrounding whitespace never fails @Email / @Pattern.
+        email = email == null ? null : email.trim();
+        phone = phone == null ? null : phone.trim();
+    }
 }

@@ -11,4 +11,8 @@ public record LoginRequest(
         @NotBlank(message = "Password is required")
         String password
 ) {
+    public LoginRequest {
+        // Trim before validation so " user@x.com" is not rejected as an invalid email.
+        email = email == null ? null : email.trim();
+    }
 }

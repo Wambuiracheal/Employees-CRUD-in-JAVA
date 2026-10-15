@@ -20,4 +20,7 @@ public record RegisterRequest(
         @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Password must contain letters and numbers")
         String password
 ) {
+    public RegisterRequest {
+        email = email == null ? null : email.trim();
+    }
 }
